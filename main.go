@@ -4,7 +4,6 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -32,10 +31,12 @@ type Input struct {
 
 // Data 数据结构
 type Data struct {
+	Code       int    `json:"code"`       //状态码2000成功，2901失败
+	Msg        string `json:"msg"`        //提示信息
 	Img        string `json:"img"`        //图片base64
 	CipherText string `json:"ciphertext"` // sha256(code+salt+time)
 
-	CheckStatus string `json:"checkstatus"` //验证状态 ok 或者 fail
+	CheckStatus string `json:"checkstatus"` //验证状态 1 或者 -1 -2
 }
 
 // New 生成图片验证码
@@ -46,7 +47,7 @@ func New() *Data {
 		Curve:      2,            // 两条弧线
 		Length:     4,            // 长度为4的验证码
 		Width:      80,           // 图片宽
-		Height:     33,           // 图片高
+		Height:     40,           // 图片高
 	})
 
 	//生成hash     sha256(code + salt+time)
@@ -54,22 +55,33 @@ func New() *Data {
 	cipherText := GetSHA256HashCode([]byte(data.Text + salt + timeText))
 
 	res := &Data{
+		Code:       2000,
+		Msg:        "创建验证码成功",
 		Img:        data.EncodeB64string(),
 		CipherText: cipherText + "#" + timeText,
 	}
 
-	// fmt.Println(res)
-	fmt.Println(res.CipherText, data.Text)
+	fmt.Println("创建验证码成功")
+	fmt.Printf("%s -> %s", data.Text, res.CipherText)
 
 	return res
-
 }
 
 // Check 检验用户输入验证码
 func Check(data *Input) *Data {
-	//获取参数
+	//返回参数
 	res := &Data{
+		Code:        2901,
+		Msg:         "验证码错误",
 		CheckStatus: "-1",
+	}
+
+	fmt.Println("开始校验验证码")
+
+	// 验证参数放置报错
+	if len(strings.Split(data.UserCipherText, "#")) != 2 {
+		fmt.Println("ctoken参数错误")
+		return res
 	}
 
 	cipherText := strings.Split(data.UserCipherText, "#")[0]
@@ -79,25 +91,28 @@ func Check(data *Input) *Data {
 	now := time.Now().Unix()
 	timeNum, err := strconv.Atoi(timeText)
 	if err != nil {
-		fmt.Println(err)
+		fmt.Println("时间戳错误")
 		return res
 	}
 
 	//过期时间10分钟
 	if now-int64(timeNum) > 600 {
+		fmt.Println("ctoken已过期")
+		res.Msg = "验证码已过期"
 		res.CheckStatus = "-2"
-		fmt.Println(res)
 		return res
 	}
 
 	//校验验证码
 
 	if GetSHA256HashCode([]byte(data.UserCode+salt+timeText)) == cipherText {
+		fmt.Println("校验成功")
+		res.Code = 2000
+		res.Msg = "验证码校验成功"
 		res.CheckStatus = "1"
 	}
 
-	fmt.Println(res)
-
+	fmt.Println("验证码校验失败")
 	return res
 }
 
@@ -112,13 +127,21 @@ func GetSHA256HashCode(message []byte) string {
 
 // scf入口函数
 func scf(event DefineEvent) (interface{}, error) {
+	res := &Data{
+		Code: 2901,
+		Msg:  "请求参数错误",
+	}
+
 	params := Input{}
 
 	err := json.Unmarshal([]byte(event.Body), &params)
 	if err != nil {
-		fmt.Println("json反序列失败->", err)
-		return "", err
+		fmt.Println("json反序列入参失败->", err)
+		return res, nil
 	}
+
+	fmt.Println("输入内容")
+	fmt.Println(params)
 
 	if params.Action == "new" {
 		return New(), nil
@@ -126,7 +149,7 @@ func scf(event DefineEvent) (interface{}, error) {
 		return Check(&params), nil
 	}
 
-	return "", errors.New("无action参数")
+	return res, nil
 }
 
 func main() {
