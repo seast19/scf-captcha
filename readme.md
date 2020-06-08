@@ -7,9 +7,7 @@
 
 ### 使用说明
 
-- `SCF_BASE_URL` 为腾讯云函数相应 API 网关的访问路径，如 `https://service-dlxxjcx0-1xxx02252.gz.apigw.tencentcs.com/release/simple-captcha`
-
-* 获取验证码
+- 获取验证码
 
   ```
   POST SCF_BASE_URL HTTP/1.1
@@ -23,6 +21,8 @@
   | ------ | ------ | ---- | ----- | ------------------------- |
   | action | string | 是   | `new` | 获取验证码时传固定值`new` |
 
+  `SCF_BASE_URL` 为腾讯云函数相应 API 网关的访问路径，如 `https://service-dlxxjcx0-1xxx02252.gz.apigw.tencentcs.com/release/simple-captcha`
+
   响应参数(body)：
 
   | 参数名     | 类型   | 值            | 说明                                           |
@@ -32,7 +32,7 @@
   | img        | string |               | 验证码图片的 base64 编码                       |
   | ciphertext | string |               | 验证码 hash 值，用于校验用户输入验证码是否正确 |
 
-- 校验验证码
+* 校验验证码
 
   ```
   POST SCF_BASE_URL HTTP/1.1
@@ -56,6 +56,12 @@
   | msg         | string |                | 提示信息                                                      |
   | checkstatus | string | `1`,`-1` ,`-2` | 校验验证码状态：成功(`1`)；验证码错误(`-1`)；验证码过期(`-2`) |
 
-### 部署
+### 部署到云
 
 - [编译打包](https://cloud.tencent.com/document/product/583/18032#.E7.BC.96.E8.AF.91.E6.89.93.E5.8C.85)
+
+- 将打包后的`main`文件压缩到`xxx.zip`
+
+- 云函数部署，参考[文档](https://cloud.tencent.com/document/product/583/19806)
+
+- 触发器部署，参考[文档](https://cloud.tencent.com/document/product/583/30230)，部署为`API网关触发器`
